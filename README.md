@@ -160,15 +160,19 @@ print("Długość listy: ", mojaLista.len);
 
 ```
 
-## 7. Wejście / Wyjście i Moduły
+## 7. Wejście / Wyjście
 
 * **`print(arg1, arg2...)`** - Wypisuje argumenty do konsoli. Formatowanie list następuje automatycznie. *(Ciekawostka: wydrukowanie liczby 67 uruchamia systemowy Easter Egg).*.
 
 ---
 
-*Koniec dokumentacji.*
-**Instalacja**
+## Instalacja
+
 zklonuj repozytorium i wejdź do folderu repozytorium, następnie w terminalu wpisz `npm link`
-**Uruchamianie skryptów:**
+
+## Uruchamianie Skryptów
+
 Zakładając, że plik nazywa się `script.cyc`, w terminalu wpisz:
 `cyc script.cyc`
+
+*Koniec dokumentacji.*
