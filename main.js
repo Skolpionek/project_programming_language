@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'fs';
-import { FUNCTIONS, SPECIAL_FORMS, VARIABLES } from './environment.js';
+import { FUNCTIONS, SPECIAL_FORMS, VARIABLES , TYPE_METHODS, TYPE_PROPERTIES} from './environment.js';
 
 class SyntaxError extends Error{}
 
@@ -95,10 +95,20 @@ function evaluate(parsedExpression, env) {
    }
 
    if (parsedExpression.type === "property") {
-      let obj = env[parsedExpression.object];
-      if (!obj) throw new ReferenceError(`Niezdefiniowany obiekt: ${parsedExpression.object}`);
+      let objName = parsedExpression.object;
+      let propName = parsedExpression.property;
       
-      return obj[parsedExpression.property];
+      let obj = env[objName];
+      if (obj === undefined) throw new ReferenceError(`Niezdefiniowana zmienna: ${objName}`);
+      
+      let type = typeof obj;
+      if ((type === "string" || type === "number") && TYPE_PROPERTIES[type] && propName in TYPE_PROPERTIES[type]) {
+         return TYPE_PROPERTIES[type][propName](obj); 
+      }
+      
+      if (typeof obj === "object") return obj[propName];
+      
+      throw new TypeError(`Właściwość '${propName}' nie istnieje dla typu '${type}'`);
    }
    
    if (parsedExpression.type === 'apply') {
@@ -107,11 +117,19 @@ function evaluate(parsedExpression, env) {
          let methodName = parsedExpression.operator.property;
          
          let obj = env[objName];
-         if (!obj) throw new ReferenceError(`Niezdefiniowany obiekt: ${objName}`);
-         if (typeof obj[methodName] !== "function") throw new TypeError(`${methodName} nie jest metodą!`);
-         
+         if (obj === undefined) throw new ReferenceError(`Niezdefiniowana zmienna: ${objName}`);
          let evaluatedArgs = parsedExpression.args.map(arg => evaluate(arg, env));
-         return obj[methodName](evaluatedArgs);
+         
+         let type = typeof obj;
+         if ((type === "string" || type === "number") && TYPE_METHODS[type] && methodName in TYPE_METHODS[type]) {
+            return TYPE_METHODS[type][methodName](obj, evaluatedArgs);
+         }
+         
+         if (typeof obj === "object" && typeof obj[methodName] === "function") {
+            return obj[methodName](evaluatedArgs);
+         }
+         
+         throw new TypeError(`'${methodName}' nie jest metodą dla typu '${type}'!`);
       }
 
       let currentOperator = parsedExpression.operator.name;
@@ -139,7 +157,7 @@ function evaluate(parsedExpression, env) {
    return parsedExpression;
 }
 
-function interprete(expression){
+export function interprete(expression){
    let parsed = parse(`do(${expression})`);
    let globalEnv = Object.create(null);
    return evaluate(parsed, globalEnv)
@@ -164,7 +182,9 @@ function runCLI() {
    }
 }
 
-runCLI();
+if (process.argv.length > 2) {
+   runCLI();
+}
 //npm link
 
 

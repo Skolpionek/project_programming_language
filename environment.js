@@ -289,4 +289,24 @@ export const VARIABLES = Object.create(null);
 
 VARIABLES.true = true;
 VARIABLES.false = false;
-VARIABLES.penis = "<===========3";
+
+//----------------------
+// METODY DLA TYPÓW PRYMITYWNYCH
+//----------------------
+export const TYPE_METHODS = {
+   string: {
+      upper: (val, args) => val.toUpperCase(),
+      lower: (val, args) => val.toLowerCase(),
+      repeat: (val, args) => val.repeat(args[0])
+   },
+   number: {
+      isEven: (val, args) => val % 2 === 0,
+      isOdd: (val, args) => val % 2 !== 0
+   }
+};
+
+export const TYPE_PROPERTIES = {
+   string: {
+      len: (val) => val.length
+   }
+};
