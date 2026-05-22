@@ -2,6 +2,8 @@
 //ERRORY
 //----------------------
 
+import { parse } from "path";
+import fs from 'fs';
 class SyntaxError extends Error{}
 class TypeMismatchError extends Error{}
 class DivisionByZero extends Error{}
@@ -80,13 +82,10 @@ FUNCTIONS.list = (args) => {
 
 //operatory artytmetyczne
 FUNCTIONS["+"] = (args) => args.slice(1).reduce((acc, curr) => {
-   // 1.czy ten sam typ danych
    if (typeof acc !== typeof curr) {
-      console.log(acc)
       throw new TypeMismatchError(`Operacja na złych typach: próba dodania ${typeof curr} do ${typeof acc}`);
    }
    
-   // dozwolone typy (tylko liczba lub string)
    if (typeof acc !== "number" && typeof acc !== "string") {
       throw new TypeMismatchError(`Błędny typ: operator dodawania nie obsługuje typu ${typeof acc}`);
    }
@@ -211,20 +210,24 @@ SPECIAL_FORMS["="] = (args, env, evaluate) => {
    if (args[0].name in env) SPECIAL_FORMS.set(args,env,evaluate);
    else SPECIAL_FORMS.define(args,env,evaluate);
 }
-SPECIAL_FORMS["++"] = (args, env, evaluate,sex=1) => {
-   if(!args.length)return 1*sex;
+SPECIAL_FORMS["++"] = (args, env, evaluate, parse, step = 1) => {
+   if(!args.length) return 1 * step;
+   
    args.forEach(arg => {
-      if(typeof env[arg.name] !== "number"){
-         throw new TypeMismatchError(`Zmienna ${arg.name} nie jest typu 'number', nie można jej inkrementować`);
+      let currentValue = evaluate(arg, env);
+      
+      if (typeof currentValue !== "number") {
+         throw new TypeMismatchError(`Zmienna '${arg.name}' nie jest typu 'number', nie można jej inkrementować`);
       }
-      SPECIAL_FORMS.define([{...arg, valueType: 'number'}, Number(evaluate(arg,env)+sex)],env,evaluate)
+      let newValueNode = { type: "value", value: currentValue + step };
+      SPECIAL_FORMS.set([arg, newValueNode], env, evaluate);
    });
-   let values = args.map(arg => env[arg.name])
-   if(values.length === 1)
-      return values[0];
+   let values = args.map(arg => evaluate(arg, env));
+   if (values.length === 1) return values[0];
+   
    return values;
 };
-SPECIAL_FORMS["--"] = (args, env, evaluate) => SPECIAL_FORMS["++"](args, env, evaluate,-1);
+SPECIAL_FORMS["--"] = (args, env, evaluate) => SPECIAL_FORMS["++"](args, env, evaluate,parse,-1);
 
 SPECIAL_FORMS.if = (args, env, evaluate) => {
    let condition = evaluate(args[0], env);
@@ -245,7 +248,7 @@ SPECIAL_FORMS.if = (args, env, evaluate) => {
    }  
 };
 
-SPECIAL_FORMS.while = (args, env, evaluate) => {
+SPECIAL_FORMS.while = (args, env, evaluate, parse) => {
    if (args.length !== 2) {
       throw new SyntaxError("Niepoprawne użycie while. Poprawne: while(warunek, instrukcja)");
    }
@@ -293,6 +296,28 @@ SPECIAL_FORMS.func = (args, env, evaluate) => {
       return evaluate(body, localEnv);
    }
 }
+SPECIAL_FORMS.import = (args, env, evaluate, parse) => {
+   if (args.length !== 1) {
+      throw new SyntaxError("import potrzebuje dokładnie jednego argumentu: import(sciezka_do_pliku)");
+   }
+
+   let filename = evaluate(args[0], env);
+   if (typeof filename !== "string") {
+      throw new SyntaxError("Ścieżka do pliku w funkcji import musi być ciągiem tekstowym (string).");
+   }
+
+   try {
+      let fileContent = fs.readFileSync(filename, 'utf8');
+      let moduleEnv = Object.create(VARIABLES);
+      let parsedModule = parse(`do(${fileContent})`);
+
+      evaluate(parsedModule, moduleEnv);
+      return moduleEnv;
+
+   } catch (error) {
+      throw new Error(`Błąd krytyczny importu pliku '${filename}': ${error.message}`);
+   }
+};
 
 //----------------------
 // Zmienne Wbudowane

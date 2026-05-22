@@ -1,10 +1,15 @@
 import assert from 'assert';
 import { interprete } from './main.js';
+import fs from 'fs';
 
-let passed = 0;
-let failed = 0;
+const testModuleName = "temp_test_module.txt";
+const testModuleContent = `
+   =(tajnaLiczba:num, 42);
+   =(podwoj, func(x, *(x, 2)));
+`;
+fs.writeFileSync(testModuleName, testModuleContent);
 
-const tests = [
+const regression_tests = [
    // 1. MATEMATYKA
    { name: "Dodawanie", code: "+(5, 10, 5)", expected: 20 },
    { name: "Odejmowanie", code: "-(20, 5)", expected: 15 },
@@ -48,30 +53,56 @@ const tests = [
    // 7. METODY PRYMITYWÓW
    { name: "Metoda stringa (upper)", code: "=(s:str, \"hej\"); s.upper()", expected: "HEJ" },
    { name: "Właściwość stringa (len)", code: "=(s:str, \"test\"); s.len", expected: 4 },
-   { name: "Metoda liczby (isEven)", code: "=(n:num, 4); n.isEven()", expected: true }
-];
+   { name: "Metoda liczby (isEven)", code: "=(n:num, 4); n.isEven()", expected: true },
 
-tests.forEach(test => {
-   try {
-      let result = interprete(test.code);
-      assert.deepStrictEqual(result, test.expected);
-      
-      console.log(`✅ ZALICZONE: ${test.name}`);
-      passed++;
-   } catch (error) {
-      console.log(`❌ OBLANE: ${test.name}`);
-      console.log(`   Oczekiwano: ${test.expected}`);
-      console.log(`   Błąd: ${error.message}`);
-      failed++;
+   // 8. MODUŁY I IMPORT (Nowość!)
+   { 
+      name: "Import pliku i odczyt zmiennej", 
+      code: `=(mod, import("${testModuleName}")); mod.tajnaLiczba`, 
+      expected: 42 
+   },
+   { 
+      name: "Wywołanie funkcji z zaimportowanego modułu", 
+      code: `=(mod, import("${testModuleName}")); mod.podwoj(10)`, 
+      expected: 20 
    }
-});
+];
+const unit_tests = [
+   { name: "Pętla WHILE", code: "=(i:num, 0); while(<(i, 5), ++(i)); i", expected: 5 }
+]
 
-console.log("\n--- PODSUMOWANIE ---");
-console.log(`Zaliczone: ${passed}`);
-console.log(`Oblane: ${failed}`);
+function testing(tests){
+   let passed = 0;
+   let failed = 0;
+   let failedNames = [];
+   tests.forEach(test => {
+      try {
+         let result = interprete(test.code);
+         assert.deepStrictEqual(result, test.expected);
+         
+         console.log(`✅ ZALICZONE: ${test.name}`);
+         passed++;
+      } catch (error) {
+         console.log(`❌ OBLANE: ${test.name}`);
+         console.log(`   Oczekiwano: ${test.expected}`);
+         console.log(`   Błąd: ${error.message}`);
+         failed++;
+         failedNames.push(test.name);
+      }
+   });
+   console.log("\n--- PODSUMOWANIE ---");
+   console.log(`Zaliczone: ${passed}`);
+   console.log(`Oblane: ${failed}`);
+   console.log(failedNames ? `Lista Oblanych testów: ${failedNames}` : "");
 
-if (failed > 0) {
-   process.exit(1); 
-} else {
-   console.log("Działa");
+   if (failed > 0) {
+      process.exit(1); 
+   } else {
+      console.log("Działa");
+   }
+   if (fs.existsSync(testModuleName)) {
+      fs.unlinkSync(testModuleName);
+   }
 }
+testing(regression_tests);
+

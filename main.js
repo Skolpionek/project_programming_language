@@ -135,7 +135,7 @@ function evaluate(parsedExpression, env) {
       let currentOperator = parsedExpression.operator.name;
       
       if (currentOperator in SPECIAL_FORMS) {
-         return SPECIAL_FORMS[currentOperator](parsedExpression.args, env, evaluate);
+         return SPECIAL_FORMS[currentOperator](parsedExpression.args, env, evaluate, parse);
       } 
       
       if (currentOperator in FUNCTIONS) {
