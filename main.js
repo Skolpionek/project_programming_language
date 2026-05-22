@@ -17,10 +17,10 @@ function parseExpression(program) {
    
    if (match = /^"([^"]*)"/.exec(program)) {
       expr = {type: "value", value: match[1].replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\r/g, '\r').replace(/\\x1b/g, '\x1b')};
-   } else if (match = /^\d+(\.\d+)?\b/.exec(program)) {
+   } else if (match = /^-?\d+(\.\d+)?\b/.exec(program)) {
       expr = {type: "value", value: Number(match[0])};
       
-   } else if (match = /^([^\s(),#":]+)(?::([a-zA-Z0-9_]+))?/.exec(program)) {
+   } else if (match = /^([^\s(),#":.]+)(?::([a-zA-Z0-9_]+))?/.exec(program)) {
       
       let fullName = match[1]; 
       
@@ -54,22 +54,31 @@ function parseExpression(program) {
 
 function parseApply(expr, program) {
    program = skipSpace(program);
-   if (program[0] != "(") {
-      return {expr: expr, rest: program};
-   }
-   program = skipSpace(program.slice(1));
-   expr = {type: "apply", operator: expr, args: []};
-   while (program[0] != ")") {
-      let arg = parseExpression(program);
-      expr.args.push(arg.expr);
-      program = skipSpace(arg.rest);
-      if (program[0] == "," || program[0] == ";") {
-         program = skipSpace(program.slice(1));
-      } else if (program[0] != ")") {
-         throw new SyntaxError("Oczekiwano ',' ';' lub ')'");
+   if (program[0] === "(") {
+      program = skipSpace(program.slice(1));
+      expr = {type: "apply", operator: expr, args: []};
+      while (program[0] !== ")") {
+         let arg = parseExpression(program);
+         expr.args.push(arg.expr);
+         program = skipSpace(arg.rest);
+         if (program[0] === "," || program[0] === ";") {
+            program = skipSpace(program.slice(1));
+         } else if (program[0] !== ")") {
+            throw new SyntaxError("Oczekiwano ',' ';' lub ')'");
+         }
       }
+      return parseApply(expr, program.slice(1));
+   } 
+   else if (program[0] === ".") {
+      program = skipSpace(program.slice(1));
+      let match = /^[a-zA-Z_]\w*/.exec(program);
+      if (!match) {
+         throw new SyntaxError("Oczekiwano nazwy właściwości po kropce");
+      }
+      expr = {type: "property", object: expr, property: match[0]};
+      return parseApply(expr, program.slice(match[0].length));
    }
-   return parseApply(expr, program.slice(1));
+   return {expr: expr, rest: program};
 }
 
 function parse(program) {
@@ -95,11 +104,15 @@ function evaluate(parsedExpression, env) {
    }
 
    if (parsedExpression.type === "property") {
-      let objName = parsedExpression.object;
-      let propName = parsedExpression.property;
+      let obj;
+      if (typeof parsedExpression.object === "string") {
+         obj = env[parsedExpression.object];
+      } else {
+         obj = evaluate(parsedExpression.object, env);
+      }
       
-      let obj = env[objName];
-      if (obj === undefined) throw new ReferenceError(`Niezdefiniowana zmienna: ${objName}`);
+      let propName = parsedExpression.property;
+      if (obj === undefined) throw new TypeError(`Nie można odczytać właściwości '${propName}' z niezdefiniowanego obiektu`);
       
       let type = typeof obj;
       if ((type === "string" || type === "number") && TYPE_PROPERTIES[type] && propName in TYPE_PROPERTIES[type]) {
@@ -112,16 +125,22 @@ function evaluate(parsedExpression, env) {
    }
    
    if (parsedExpression.type === 'apply') {
+      
       if (parsedExpression.operator.type === "property") {
-         let objName = parsedExpression.operator.object;
-         let methodName = parsedExpression.operator.property;
+         let obj;
+         if (typeof parsedExpression.operator.object === "string") {
+            obj = env[parsedExpression.operator.object];
+         } else {
+            obj = evaluate(parsedExpression.operator.object, env);
+         }
          
-         let obj = env[objName];
-         if (obj === undefined) throw new ReferenceError(`Niezdefiniowana zmienna: ${objName}`);
+         let methodName = parsedExpression.operator.property;
+         if (obj === undefined) throw new TypeError(`Nie można wywołać metody '${methodName}' na niezdefiniowanym obiekcie`);
+         
          let evaluatedArgs = parsedExpression.args.map(arg => evaluate(arg, env));
          
          let type = typeof obj;
-         if ((type === "string" || type === "number") && TYPE_METHODS[type] && methodName in TYPE_METHODS[type]) {
+         if ((type === "string" || type === "number") && typeof TYPE_METHODS !== "undefined" && TYPE_METHODS[type] && methodName in TYPE_METHODS[type]) {
             return TYPE_METHODS[type][methodName](obj, evaluatedArgs);
          }
          
@@ -132,33 +151,37 @@ function evaluate(parsedExpression, env) {
          throw new TypeError(`'${methodName}' nie jest metodą dla typu '${type}'!`);
       }
 
-      let currentOperator = parsedExpression.operator.name;
-      
-      if (currentOperator in SPECIAL_FORMS) {
-         return SPECIAL_FORMS[currentOperator](parsedExpression.args, env, evaluate, parse);
+      if (parsedExpression.operator.type === "word" && parsedExpression.operator.name in SPECIAL_FORMS) {
+         return SPECIAL_FORMS[parsedExpression.operator.name](parsedExpression.args, env, evaluate, parse);
       } 
       
-      if (currentOperator in FUNCTIONS) {
-         let evaluatedArgs = parsedExpression.args.map(arg => evaluate(arg, env));
-         let result = FUNCTIONS[currentOperator](evaluatedArgs);
-         return result;
-      }
-      if (currentOperator in env) {
-         let funcObj = env[currentOperator];
-         if (typeof funcObj !== "function") {
-             throw new TypeError(`'${currentOperator}' nie jest funkcją.`);
+      let funcObj;
+      if (parsedExpression.operator.type === "word") {
+         let currentOperator = parsedExpression.operator.name;
+         if (typeof FUNCTIONS !== "undefined" && currentOperator in FUNCTIONS) {
+            funcObj = FUNCTIONS[currentOperator];
+         } else if (currentOperator in env) {
+            funcObj = env[currentOperator];
+         } else {
+             throw new ReferenceError(`Niezdefiniowana funkcja: ${currentOperator}`);
          }
-         let evaluatedArgs = parsedExpression.args.map(arg => evaluate(arg, env));
-         return funcObj(evaluatedArgs);
+      } else {
+         funcObj = evaluate(parsedExpression.operator, env);
       }
-      throw new SyntaxError(`Nieznana funkcja lub operator: ${currentOperator}`);
+
+      if (typeof funcObj !== "function") {
+         throw new TypeError(`Próba wywołania czegoś, co nie jest funkcją.`);
+      }
+      
+      let evaluatedArgs = parsedExpression.args.map(arg => evaluate(arg, env));
+      return funcObj(evaluatedArgs);
    }
    
    return parsedExpression;
 }
 
 export function interprete(expression){
-   let parsed = parse(`do(${expression})`);
+   let parsed = parse(`do(${expression}\n)`);
    let globalEnv = Object.create(null);
    return evaluate(parsed, globalEnv)
 }
@@ -186,7 +209,3 @@ if (process.argv.length > 2) {
    runCLI();
 }
 //npm link
-
-
-
-

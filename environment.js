@@ -128,21 +128,40 @@ comparisonOperators.forEach(operator => {
    FUNCTIONS[operator] = Function("args", functionBody);
 });
 
-//Operatory logiczne
-FUNCTIONS.and = (args) => args.every(arg => Boolean(arg));
-FUNCTIONS.or = (args) => args.some(arg => Boolean(arg));
-FUNCTIONS.nand = (args) => !(FUNCTIONS.and(args));
-FUNCTIONS.nor = (args) => !(FUNCTIONS.or(args));
-FUNCTIONS.not = (args) => {
-   if(args.length !== 1) throw new SyntaxError("not przyjmuje tylko jeden argument: not(wyrazenie)");
-   return !args[0];
-};
+
 
 //----------------------
 //INSTRUKCJE SPECJALNE
 //----------------------
 
 export const SPECIAL_FORMS = Object.create(null);
+
+//Operatory logiczne
+SPECIAL_FORMS.or = (args, env, evaluate) => {
+   for (let arg of args) {
+      let value = evaluate(arg, env);
+      if (value === true) {
+         return true; 
+      }
+   }
+   return false;
+};
+
+SPECIAL_FORMS.and = (args, env, evaluate) => {
+   for (let arg of args) {
+      let value = evaluate(arg, env);
+      if (value === false) {
+         return false; 
+      }
+   }
+   return true;
+};
+SPECIAL_FORMS.nand = (args, env, evaluate) => !(SPECIAL_FORMS.and(args, env, evaluate));
+SPECIAL_FORMS.nor = (args, env, evaluate) => !(SPECIAL_FORMS.or(args, env, evaluate));
+FUNCTIONS.not = (args) => {
+   if(args.length !== 1) throw new SyntaxError("not przyjmuje tylko jeden argument: not(wyrazenie)");
+   return !args[0];
+};
 
 SPECIAL_FORMS.do = (args, env, evaluate) => {
    let value = false;
@@ -207,9 +226,15 @@ SPECIAL_FORMS.set = (args, env, evaluate) => {
    return value;
 };
 SPECIAL_FORMS["="] = (args, env, evaluate) => {
-   if (args[0].name in env) SPECIAL_FORMS.set(args,env,evaluate);
-   else SPECIAL_FORMS.define(args,env,evaluate);
-}
+   if (args[0].valueType) {
+      return SPECIAL_FORMS.define(args, env, evaluate);
+   }
+   if (Object.prototype.hasOwnProperty.call(env, args[0].name)) {
+      return SPECIAL_FORMS.set(args, env, evaluate);
+   } else {
+      return SPECIAL_FORMS.define(args, env, evaluate);
+   }
+};
 SPECIAL_FORMS["++"] = (args, env, evaluate, parse, step = 1) => {
    if(!args.length) return 1 * step;
    
@@ -241,6 +266,8 @@ SPECIAL_FORMS.if = (args, env, evaluate) => {
    else if(args.length === 2){
       if (condition !== false && condition !== 0 && condition !== "") {
          return evaluate(args[1], env);
+      } else {
+         return false;
       }
    }
    else {
@@ -264,8 +291,8 @@ SPECIAL_FORMS.for = (args, env, evaluate) => {
       throw new SyntaxError("Niepoprawne użycie for. Poprawne: for(inicjalizacja; warunek; krok; ciało)");
    }
    let localEnv = Object.create(env);
-
    evaluate(args[0], localEnv);
+   
 
    while (evaluate(args[1], localEnv) !== false) {
       evaluate(args[3], localEnv);
@@ -347,6 +374,7 @@ export const TYPE_METHODS = {
       padStart: (val, args) => val.padStart(args[0], args[1] || " ") 
    },
    number: {
+      
    }
 };
 
