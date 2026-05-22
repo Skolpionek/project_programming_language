@@ -1,3 +1,1 @@
-=(x:str,"JDD");
-=(x,x.repeat(2));
-print(x)
+print("Hello World!");

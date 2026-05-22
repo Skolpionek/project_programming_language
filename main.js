@@ -1,11 +1,35 @@
 #!/usr/bin/env node
 
 import fs from 'fs';
-import { FUNCTIONS, SPECIAL_FORMS, VARIABLES , TYPE_METHODS, TYPE_PROPERTIES} from './environment.js';
+import { FUNCTIONS, SPECIAL_FORMS, VARIABLES, TYPE_METHODS, TYPE_PROPERTIES } from './environment.js';
 
-class SyntaxError extends Error{}
+// ==========================================
+// CUSTOM ERRORS
+// ==========================================
+class SyntaxError extends Error {
+   constructor(message) {
+      super(message);
+      this.name = "SyntaxError";
+   }
+}
 
+export class TypeMismatchError extends Error {
+   constructor(message) {
+      super(message);
+      this.name = "TypeMismatchError";
+   }
+}
 
+export class DivisionByZeroError extends Error {
+   constructor(message) {
+      super(message);
+      this.name = "DivisionByZeroError";
+   }
+}
+
+// ==========================================
+// PARSER
+// ==========================================
 function skipSpace(string) {
    let skippable = string.match(/^(\s|#.*)*/);
    return string.slice(skippable[0].length);
@@ -43,11 +67,13 @@ function parseExpression(program) {
             case "list": expr.valueType = "list"; break;
             case "func": expr.valueType = "function"; break;
             case "any": expr.valueType = "anything"; break;
+            default:
+               throw new SyntaxError(`Unknown type annotation: '${match[2]}'`);
          }
       }
       
    } else {
-      throw new SyntaxError("Niepoprawna składnia: " + program);
+      throw new SyntaxError(`Invalid syntax: ${program}`);
    }
    return parseApply(expr, program.slice(match[0].length));
 }
@@ -64,7 +90,7 @@ function parseApply(expr, program) {
          if (program[0] === "," || program[0] === ";") {
             program = skipSpace(program.slice(1));
          } else if (program[0] !== ")") {
-            throw new SyntaxError("Oczekiwano ',' ';' lub ')'");
+            throw new SyntaxError("Expected ',', ';', or ')'");
          }
       }
       return parseApply(expr, program.slice(1));
@@ -73,7 +99,7 @@ function parseApply(expr, program) {
       program = skipSpace(program.slice(1));
       let match = /^[a-zA-Z_]\w*/.exec(program);
       if (!match) {
-         throw new SyntaxError("Oczekiwano nazwy właściwości po kropce");
+         throw new SyntaxError("Expected a property name after '.'");
       }
       expr = {type: "property", object: expr, property: match[0]};
       return parseApply(expr, program.slice(match[0].length));
@@ -84,11 +110,14 @@ function parseApply(expr, program) {
 function parse(program) {
    let {expr, rest} = parseExpression(program);
    if (skipSpace(rest).length > 0) {
-      throw new SyntaxError("Niepoprawna składnia po programie");
+      throw new SyntaxError("Unexpected tokens after the end of the program");
    }
    return expr;
 }
 
+// ==========================================
+// EVALUATOR
+// ==========================================
 function evaluate(parsedExpression, env) {
    if (parsedExpression.type === "value") return parsedExpression.value;
    
@@ -99,7 +128,7 @@ function evaluate(parsedExpression, env) {
       if (parsedExpression.name in env) {
          return env[parsedExpression.name];
       } else {
-         throw new ReferenceError(`Niezdefiniowana zmienna: ${parsedExpression.name}`);
+         throw new ReferenceError(`Undefined variable: '${parsedExpression.name}'`);
       }
    }
 
@@ -112,7 +141,7 @@ function evaluate(parsedExpression, env) {
       }
       
       let propName = parsedExpression.property;
-      if (obj === undefined) throw new TypeError(`Nie można odczytać właściwości '${propName}' z niezdefiniowanego obiektu`);
+      if (obj === undefined) throw new TypeError(`Cannot read property '${propName}' of undefined`);
       
       let type = typeof obj;
       if ((type === "string" || type === "number") && TYPE_PROPERTIES[type] && propName in TYPE_PROPERTIES[type]) {
@@ -121,7 +150,7 @@ function evaluate(parsedExpression, env) {
       
       if (typeof obj === "object") return obj[propName];
       
-      throw new TypeError(`Właściwość '${propName}' nie istnieje dla typu '${type}'`);
+      throw new TypeError(`Property '${propName}' does not exist on type '${type}'`);
    }
    
    if (parsedExpression.type === 'apply') {
@@ -135,7 +164,7 @@ function evaluate(parsedExpression, env) {
          }
          
          let methodName = parsedExpression.operator.property;
-         if (obj === undefined) throw new TypeError(`Nie można wywołać metody '${methodName}' na niezdefiniowanym obiekcie`);
+         if (obj === undefined) throw new TypeError(`Cannot call method '${methodName}' of undefined`);
          
          let evaluatedArgs = parsedExpression.args.map(arg => evaluate(arg, env));
          
@@ -148,7 +177,7 @@ function evaluate(parsedExpression, env) {
             return obj[methodName](evaluatedArgs);
          }
          
-         throw new TypeError(`'${methodName}' nie jest metodą dla typu '${type}'!`);
+         throw new TypeError(`Method '${methodName}' does not exist on type '${type}'`);
       }
 
       if (parsedExpression.operator.type === "word" && parsedExpression.operator.name in SPECIAL_FORMS) {
@@ -163,14 +192,14 @@ function evaluate(parsedExpression, env) {
          } else if (currentOperator in env) {
             funcObj = env[currentOperator];
          } else {
-             throw new ReferenceError(`Niezdefiniowana funkcja: ${currentOperator}`);
+             throw new ReferenceError(`Undefined function: '${currentOperator}'`);
          }
       } else {
          funcObj = evaluate(parsedExpression.operator, env);
       }
 
       if (typeof funcObj !== "function") {
-         throw new TypeError(`Próba wywołania czegoś, co nie jest funkcją.`);
+         throw new TypeError(`Attempted to invoke a non-function value`);
       }
       
       let evaluatedArgs = parsedExpression.args.map(arg => evaluate(arg, env));
@@ -186,21 +215,29 @@ export function interprete(expression){
    return evaluate(parsed, globalEnv)
 }
 
+// ==========================================
+// CLI RUNNER
+// ==========================================
 function runCLI() {
    let args = process.argv.slice(2);
    
    if (args.length === 0) {
-      console.log("Użycie: cyc <nazwa_pliku.cyc>");
+      console.log("Usage: cyc <filename.cyc>");
       process.exit(1);
    }
    
    let filename = args[0];
    
    try {
+      // NOWOŚĆ: Zabezpieczenie przed brakiem pliku
+      if (!fs.existsSync(filename)) {
+         throw new Error(`File not found: '${filename}'`);
+      }
+      
       let fileContent = fs.readFileSync(filename, 'utf8');
       interprete(fileContent);
    } catch (error) {
-      console.error(`\nBłąd interpretera:\n${error.message}`);
+      console.error(`\nInterpreter Error:\n${error.name || 'Error'}: ${error.message}`);
       process.exit(1);
    }
 }

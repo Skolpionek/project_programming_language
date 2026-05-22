@@ -1,22 +1,18 @@
 //----------------------
-//ERRORY
+// IMPORTS & ERRORS
 //----------------------
 
-import { parse } from "path";
 import fs from 'fs';
-class SyntaxError extends Error{}
-class TypeMismatchError extends Error{}
-class DivisionByZero extends Error{}
+// We import the custom errors you defined and exported in main.js
+import { TypeMismatchError, DivisionByZeroError } from './main.js';
 
 //----------------------
-//FUNKCJE
+// FUNCTIONS
 //----------------------
 
 export const FUNCTIONS = Object.create(null);
 
-
 FUNCTIONS.print = (args) => {
-
    const formatOutput = (arg) => {
       if (arg && arg.type === "list") {
          let inner = arg.value.map(v => formatOutput(v)).join(" ");
@@ -24,8 +20,8 @@ FUNCTIONS.print = (args) => {
       }
       return ((arg == 67) ? "SIX SEVEN!!!! SIX SEVEN!!! SIX SEVEN!!" : arg);
    };
+   
    args = args.map(arg => formatOutput(arg));
-
    let output = args.join("");
    process.stdout.write(output);
    return output;
@@ -36,11 +32,9 @@ FUNCTIONS.cos = (args) => Math.cos(args[0]);
 FUNCTIONS.floor = (args) => Math.floor(args[0]);
 FUNCTIONS.clear = () => console.clear();
 
-
 //----------------------
-//STRUKTURY DANYCH
+// DATA STRUCTURES
 //----------------------
-
 
 FUNCTIONS.list = (args) => {
    let obj = Object.create(null);
@@ -54,22 +48,29 @@ FUNCTIONS.list = (args) => {
    
    obj.del = (args) => {
       let amount = args[0] || 1;
-      for(let i=0;i<amount;i++)
+      for(let i = 0; i < amount; i++) {
          obj.value.pop(); 
+      }
       return obj.value;
    };
+   
    obj.get = (args) => {
       let index = args[0];
-      if (index >= obj.len) throw new SyntaxError("Index wykracza poza granice listy");
+      if (index >= obj.len || index < 0) {
+         throw new RangeError("List index out of bounds");
+      }
       return obj.value[index];
-   }
+   };
+   
    obj.set = (args) => {
       let value = args[0];
       let index = args[1];
-      if (index >= obj.len) throw new SyntaxError("Index wykracza poza granice listy");
+      if (index >= obj.len || index < 0) {
+         throw new RangeError("List index out of bounds");
+      }
       obj.value[index] = value;
       return obj.value[index];
-   }
+   };
 
    Object.defineProperty(obj, 'len', {
       get: function() {
@@ -80,42 +81,58 @@ FUNCTIONS.list = (args) => {
    return obj;
 }
 
-//operatory artytmetyczne
+//----------------------
+// ARITHMETIC OPERATORS
+//----------------------
+
 FUNCTIONS["+"] = (args) => args.slice(1).reduce((acc, curr) => {
    if (typeof acc !== typeof curr) {
-      throw new TypeMismatchError(`Operacja na złych typach: próba dodania ${typeof curr} do ${typeof acc}`);
+      throw new TypeMismatchError(`Type mismatch: attempt to add '${typeof curr}' to '${typeof acc}'`);
    }
    
    if (typeof acc !== "number" && typeof acc !== "string") {
-      throw new TypeMismatchError(`Błędny typ: operator dodawania nie obsługuje typu ${typeof acc}`);
+      throw new TypeMismatchError(`Invalid type: the addition operator does not support type '${typeof acc}'`);
    }
    
    return acc + curr;
 }, args[0]);
 
 FUNCTIONS["-"] = (args) => args.reduce((acc, curr) => {
-   if(typeof acc !== "number" && typeof curr !== "number") throw new TypeMismatchError("Operacja na złych typach");
+   if(typeof acc !== "number" || typeof curr !== "number") {
+      throw new TypeMismatchError("Type mismatch: subtraction requires numbers");
+   }
    return acc - curr;
 });
+
 FUNCTIONS["*"] = (args) => args.reduce((acc, curr) => {
-   if(typeof acc !== "number" && typeof curr !== "number") throw new TypeMismatchError("Operacja na złych typach");
-   return acc * curr
-}
-, 1);
+   if(typeof acc !== "number" || typeof curr !== "number") {
+      throw new TypeMismatchError("Type mismatch: multiplication requires numbers");
+   }
+   return acc * curr;
+}, 1);
+
 FUNCTIONS["^"] = (args) => args.reduce((acc, curr) => {
-   if(typeof acc !== "number" && typeof curr !== "number") throw new TypeMismatchError("Operacja na złych typach");
-   return Math.pow(acc, curr)
+   if(typeof acc !== "number" || typeof curr !== "number") {
+      throw new TypeMismatchError("Type mismatch: exponentiation requires numbers");
+   }
+   return Math.pow(acc, curr);
 });
+
 FUNCTIONS["/"] = (args) => {
    return args.reduce((acc, curr) => {
-      if(typeof acc !== "number" && typeof curr !== "number") throw new TypeMismatchError("Operacja na złych typach");
-      if (curr === 0) throw new DivisionByZero("Nie można dzielić przez zero!");
+      if(typeof acc !== "number" || typeof curr !== "number") {
+         throw new TypeMismatchError("Type mismatch: division requires numbers");
+      }
+      if (curr === 0) throw new DivisionByZeroError("Division by zero is not allowed");
       return acc / curr;
    });
 };
 
-//Operatory porówniania
-let comparisonOperators = ["==","!=","<","<=",">",">="];
+//----------------------
+// COMPARISON OPERATORS
+//----------------------
+
+let comparisonOperators = ["==", "!=", "<", "<=", ">", ">="];
 comparisonOperators.forEach(operator => {
    let functionBody = `
       for (let i = 0; i < args.length - 1; i++) {
@@ -128,20 +145,18 @@ comparisonOperators.forEach(operator => {
    FUNCTIONS[operator] = Function("args", functionBody);
 });
 
-
-
 //----------------------
-//INSTRUKCJE SPECJALNE
+// SPECIAL FORMS
 //----------------------
 
 export const SPECIAL_FORMS = Object.create(null);
 
-//Operatory logiczne
+// Logical Operators (Short-Circuiting)
 SPECIAL_FORMS.or = (args, env, evaluate) => {
    for (let arg of args) {
       let value = evaluate(arg, env);
       if (value === true) {
-         return true; 
+         return true; // Found true! Short-circuit and return immediately
       }
    }
    return false;
@@ -151,15 +166,17 @@ SPECIAL_FORMS.and = (args, env, evaluate) => {
    for (let arg of args) {
       let value = evaluate(arg, env);
       if (value === false) {
-         return false; 
+         return false; // Found false! Short-circuit and return immediately
       }
    }
    return true;
 };
+
 SPECIAL_FORMS.nand = (args, env, evaluate) => !(SPECIAL_FORMS.and(args, env, evaluate));
 SPECIAL_FORMS.nor = (args, env, evaluate) => !(SPECIAL_FORMS.or(args, env, evaluate));
+
 FUNCTIONS.not = (args) => {
-   if(args.length !== 1) throw new SyntaxError("not przyjmuje tylko jeden argument: not(wyrazenie)");
+   if(args.length !== 1) throw new SyntaxError("The 'not' operator requires exactly one argument: not(expression)");
    return !args[0];
 };
 
@@ -170,13 +187,15 @@ SPECIAL_FORMS.do = (args, env, evaluate) => {
    }
    return value;
 }
+
 SPECIAL_FORMS.define = (args, env, evaluate) => {
    if (args.length !== 2 || args[0].type !== "word") {
-      throw new SyntaxError("Niepoprawne przypisanie wartosci. Poprawne: =(nazwa, wartość)");
+      throw new SyntaxError("Invalid assignment. Expected: =(name, value)");
    }
    
    let value = evaluate(args[1], env);
    let inferredType = args[0].valueType;
+   
    if (!inferredType) {
       if (typeof value === "object") {
          inferredType = value.type;
@@ -184,9 +203,10 @@ SPECIAL_FORMS.define = (args, env, evaluate) => {
          inferredType = typeof value;
       }
    } 
+   
    if (args[0].valueType && args[0].valueType !== "anything") {
       if (typeof value !== "object" && args[0].valueType !== typeof value) {
-         throw new SyntaxError(`Niezgodność typu dla zmiennej '${args[0].name}'. Oczekiwano '${args[0].valueType}', otrzymano '${typeof value}'`);
+         throw new TypeMismatchError(`Type mismatch for variable '${args[0].name}'. Expected '${args[0].valueType}', got '${typeof value}'`);
       }
    }
    
@@ -195,20 +215,23 @@ SPECIAL_FORMS.define = (args, env, evaluate) => {
    
    return value;
 };
+
 SPECIAL_FORMS.set = (args, env, evaluate) => {
    if (args.length !== 2 || args[0].type !== "word") {
-      throw new SyntaxError("Niepoprawne przypisanie wartosci. Poprawne: =(nazwa, wartość)");
+      throw new SyntaxError("Invalid assignment. Expected: =(name, value)");
    }
    if (args[0].valueType) {
-      throw new SyntaxError(`Nie możesz podawać typu przy aktualizacji zmiennej! Usuń typowanie przy zmiennej '${args[0].name}'.`);
+      throw new SyntaxError(`Cannot specify a type when updating a variable! Remove the type annotation from '${args[0].name}'.`);
    }
+   
    let varName = args[0].name;
    let targetEnv = env;
+   
    while (targetEnv && !Object.prototype.hasOwnProperty.call(targetEnv, varName)) {
       targetEnv = Object.getPrototypeOf(targetEnv);
    }
 
-   if (!targetEnv) throw new ReferenceError(`Zmienna '${varName}' nie jest zdefiniowana.`);
+   if (!targetEnv) throw new ReferenceError(`Undefined variable: '${varName}'`);
 
    let value = evaluate(args[1], env);
    let oldValue = targetEnv[varName];
@@ -216,15 +239,16 @@ SPECIAL_FORMS.set = (args, env, evaluate) => {
 
    if (declaredType !== "anything") {
       if (typeof value !== "object" && declaredType !== typeof value) {
-      throw new SyntaxError(`Niezgodność typu dla zmiennej '${varName}' typu '${declaredType}' z wartością: ${value} typu '${typeof value}'`);
+         throw new TypeMismatchError(`Type mismatch for variable '${varName}' of type '${declaredType}' with value: ${value} of type '${typeof value}'`);
       } else if (typeof value === "object" && oldValue.type !== value.type) {
-         throw new SyntaxError(`Niezgodność typu dla obiektu '${varName}'`);
+         throw new TypeMismatchError(`Type mismatch for object '${varName}'`);
       }
    }
    
    targetEnv[varName] = value;
    return value;
 };
+
 SPECIAL_FORMS["="] = (args, env, evaluate) => {
    if (args[0].valueType) {
       return SPECIAL_FORMS.define(args, env, evaluate);
@@ -235,6 +259,7 @@ SPECIAL_FORMS["="] = (args, env, evaluate) => {
       return SPECIAL_FORMS.define(args, env, evaluate);
    }
 };
+
 SPECIAL_FORMS["++"] = (args, env, evaluate, parse, step = 1) => {
    if(!args.length) return 1 * step;
    
@@ -242,23 +267,25 @@ SPECIAL_FORMS["++"] = (args, env, evaluate, parse, step = 1) => {
       let currentValue = evaluate(arg, env);
       
       if (typeof currentValue !== "number") {
-         throw new TypeMismatchError(`Zmienna '${arg.name}' nie jest typu 'number', nie można jej inkrementować`);
+         throw new TypeMismatchError(`Variable '${arg.name}' is not of type 'number', cannot modify value`);
       }
       let newValueNode = { type: "value", value: currentValue + step };
       SPECIAL_FORMS.set([arg, newValueNode], env, evaluate);
    });
+   
    let values = args.map(arg => evaluate(arg, env));
    if (values.length === 1) return values[0];
    
    return values;
 };
-SPECIAL_FORMS["--"] = (args, env, evaluate) => SPECIAL_FORMS["++"](args, env, evaluate,parse,-1);
+
+SPECIAL_FORMS["--"] = (args, env, evaluate, parse) => SPECIAL_FORMS["++"](args, env, evaluate, parse, -1);
 
 SPECIAL_FORMS.if = (args, env, evaluate) => {
    let condition = evaluate(args[0], env);
    if(args.length === 3){
       if (condition !== false && condition !== 0 && condition !== "") {
-      return evaluate(args[1], env);
+         return evaluate(args[1], env);
       } else {
          return evaluate(args[2], env);
       }
@@ -271,29 +298,27 @@ SPECIAL_FORMS.if = (args, env, evaluate) => {
       }
    }
    else {
-      throw new SyntaxError("Niepoprawne użycie if. Poprawne: if(warunek, prawda, fałsz)");
+      throw new SyntaxError("Invalid 'if' usage. Expected: if(condition, true_branch, [false_branch])");
    }  
 };
 
 SPECIAL_FORMS.while = (args, env, evaluate, parse) => {
    if (args.length !== 2) {
-      throw new SyntaxError("Niepoprawne użycie while. Poprawne: while(warunek, instrukcja)");
+      throw new SyntaxError("Invalid 'while' usage. Expected: while(condition, body)");
    }
    while (evaluate(args[0], env) !== false) {
       evaluate(args[1], env);
-      
    }
-   
    return false;
 }
+
 SPECIAL_FORMS.for = (args, env, evaluate) => {
    if (args.length !== 4) {
-      throw new SyntaxError("Niepoprawne użycie for. Poprawne: for(inicjalizacja; warunek; krok; ciało)");
+      throw new SyntaxError("Invalid 'for' usage. Expected: for(initialization; condition; step; body)");
    }
    let localEnv = Object.create(env);
    evaluate(args[0], localEnv);
    
-
    while (evaluate(args[1], localEnv) !== false) {
       evaluate(args[3], localEnv);
       evaluate(args[2], localEnv);
@@ -301,36 +326,40 @@ SPECIAL_FORMS.for = (args, env, evaluate) => {
 
    return false;
 };
+
 SPECIAL_FORMS.func = (args, env, evaluate) => {
    if(!args.length) {
-      throw new SyntaxError("Funkcja poprzebuje ciała: func(...args,body)");
+      throw new SyntaxError("Function requires a body: func(...args, body)");
    }
+   
    let body = args[args.length-1];
    let params = args.slice(0, args.length-1).map(expr => {
       if (expr.type != "word") {
-         throw new SyntaxError("Nazwy parametrów muszą być zmiennymi");
+         throw new SyntaxError("Function parameter names must be valid variables");
       }
       return expr.name;
    });
+   
    return function(args) {
       if(args.length != params.length) {
-         throw new TypeError("Zła liczba argumentów")
+         throw new TypeError(`Incorrect number of arguments. Expected ${params.length}, got ${args.length}`);
       }
       let localEnv = Object.create(env);
-      for (let i=0;i<args.length;i++){
+      for (let i = 0; i < args.length; i++){
          localEnv[params[i]] = args[i];
       }
       return evaluate(body, localEnv);
    }
 }
+
 SPECIAL_FORMS.import = (args, env, evaluate, parse) => {
    if (args.length !== 1) {
-      throw new SyntaxError("import potrzebuje dokładnie jednego argumentu: import(sciezka_do_pliku)");
+      throw new SyntaxError("The 'import' function requires exactly one argument: import(file_path)");
    }
 
    let filename = evaluate(args[0], env);
    if (typeof filename !== "string") {
-      throw new SyntaxError("Ścieżka do pliku w funkcji import musi być ciągiem tekstowym (string).");
+      throw new TypeError("The file path in the 'import' function must be a string.");
    }
 
    try {
@@ -342,12 +371,12 @@ SPECIAL_FORMS.import = (args, env, evaluate, parse) => {
       return moduleEnv;
 
    } catch (error) {
-      throw new Error(`Błąd krytyczny importu pliku '${filename}': ${error.message}`);
+      throw new Error(`Critical error importing module '${filename}': ${error.message}`);
    }
 };
 
 //----------------------
-// Zmienne Wbudowane
+// BUILT-IN VARIABLES
 //----------------------
 
 export const VARIABLES = Object.create(null);
@@ -356,16 +385,17 @@ VARIABLES.true = true;
 VARIABLES.false = false;
 
 //----------------------
-// METODY DLA TYPÓW PRYMITYWNYCH
+// PRIMITIVE TYPE METHODS
 //----------------------
+
 export const TYPE_METHODS = {
    string: {
       repeat: (val, args) => {
-         if(args.length !== 1) throw new SyntaxError("Metoda 'repeat' wymaga dokładnie 1 argumentu");
+         if(args.length !== 1) throw new SyntaxError("Method 'repeat' requires exactly 1 argument");
          return val.repeat(args[0]);
       },
       replace: (val, args) => {
-         if(args.length !== 2) throw new SyntaxError("Metoda 'replace' wymaga 2 argumentów: replace(szukany, nowy)");
+         if(args.length !== 2) throw new SyntaxError("Method 'replace' requires exactly 2 arguments: replace(search, replacement)");
          return val.replaceAll(args[0], args[1]);
       },
       contains: (val, args) => val.includes(args[0]),       
