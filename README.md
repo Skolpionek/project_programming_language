@@ -1,102 +1,101 @@
+# `cyc` Language Documentation
 
-# Dokumentacja Języka `cyc`
+Welcome to `cyc`! It is a functional, dynamically evaluated programming language originally inspired by the **Egg** language from Marijn Haverbeke's *Eloquent JavaScript*. It features a Lisp-like syntax (AST trees) combined with static typing upon variable declaration, and supports dot notation (object-oriented style) for native properties and methods.
 
-Witaj w `cyc`! Jest to funkcyjny, ewaluowany dynamicznie język programowania oparty na składni przypominającej Lisp (drzewa AST), ale posiadający statyczne typowanie przy deklaracji zmiennych oraz wsparcie dla notacji kropkowej (obiektowej).
+In `cyc`, everything is an expression (even loops and code blocks return values), and statements rely on function calls in the format: `operator(argument1, argument2)`. Arguments can be separated interchangeably using `,` and `;`.
 
-W `cyc` wszystko jest wyrażeniem (nawet pętle i bloki kodu zwracają wartości), a instrukcje opierają się na wywołaniach funkcji w formacie: `operator(argument1, argument2)`. Argumenty rozdziela się zamiennie przez `,` oraz `;`.
+## 1. Data Types
 
-## 1. Typy danych
+When declaring new variables, you must specify their type using a colon `:`.
+Available types are:
 
-Podczas deklarowania nowych zmiennych należy określić ich typ za pomocą dwukropka `:`.
-Dostępne typy to:
+* `num` - numbers (e.g., `5`, `-10.5`)
+* `str` - strings (e.g., `"Hello world"`)
+* `bool` - booleans (`true`, `false`)
+* `list` - list structures
+* `func` - functions
+* `any` - dynamic type (allows assigning any data type and changing it later)
 
-* `num` - liczby (np. `5`, `-10.5`)
-* `str` - ciągi znaków (np. `"Witaj świecie"`)
-* `bool` - wartości logiczne (`true`, `false`)
-* `list` - struktury listowe
-* `func` - funkcje
-* `any` - typ dynamiczny (pozwala na przypisanie czegokolwiek)
+## 2. Variables and Assignments
 
-## 2. Zmienne i przypisania
-
-Język używa uniwersalnego operatora `=` do deklaracji i aktualizacji zmiennych. Inteligentny dyspozytor sam decyduje, czy stworzyć nową zmienną w lokalnym zasięgu (Scope), czy zaktualizować istniejącą.
+The language uses a universal `=` operator for both declaring and updating variables. The intelligent dispatcher decides on its own whether to create a new variable in the local scope or update an existing one.
 
 ```javascript
-# Deklaracja nowej zmiennej 
-=(wiek, 25);
-=(wiek:num, 22);
-=(imie, "Jan");
-=(imie:str, "Kamil");
-=(czyGotowy:bool, true);
-=(czyGotowy, false);
-Alternatywnie: 
-define(wiek, 25);
+# Declaring a new variable 
+=(age, 25);
+=(age:num, 22);
+=(name, "John");
+=(name:str, "Kevin");
+=(isReady:bool, true);
+=(isReady, false);
+Alternatively: 
+define(age, 25);
 
-# Aktualizacja istniejącej zmiennej (BEZ podawania typu)
-=(wiek, 26);
-Alternatywnie: 
-set(wiek, 26);
+# Updating an existing variable (WITHOUT providing the type)
+=(age, 26);
+Alternatively: 
+set(age, 26);
 
-# Skróty atrytmetyczne (inkrementacja / dekrementacja)
-++(wiek);  # Zwiększa o 1
---(wiek);  # Zmniejsza o 1
+# Arithmetic shortcuts (increment / decrement)
+++(age);  # Increases by 1
+--(age);  # Decreases by 1
 
 ```
 
-## 3. Operatory matematyczne i logiczne
+## 3. Mathematical and Logical Operators
 
-Operatory w `cyc` przyjmują dowolną liczbę argumentów. W przypadku porównań obsługują ewaluację łańcuchową (ang. *chaining*), a operatory logiczne mają wbudowane leniwe wartościowanie (tzw. *short-circuiting*).
+Operators in `cyc` can take any number of arguments. Comparison operators support chaining, and logical operators feature built-in short-circuit evaluation.
 
-### Matematyka
+### Mathematics
 
-| Zapis | Opis | Przykład | Wynik |
+| Syntax | Description | Example | Result |
 | --- | --- | --- | --- |
-| `+` | Dodawanie | `+(2, 2, 2)` | `6` |
-| `-` | Odejmowanie | `-(10, 5)` | `5` |
-| `*` | Mnożenie | `*(3, 3)` | `9` |
-| `/` | Dzielenie | `/(100, 2)` | `50` |
-| `^` | Potęgowanie | `^(2, 3)` | `8` |
+| `+` | Addition | `+(2, 2, 2)` | `6` |
+| `-` | Subtraction | `-(10, 5, 5)` | `0` |
+| `*` | Multiplication | `*(3, 3, 3)` | `27` |
+| `/` | Division | `/(100, 2, 2)` | `25` |
+| `^` | Exponentiation | `^(2, 3, 2)` | `64` |
 
-### Logika i Porównania
+### Logic and Comparisons
 
-| Zapis | Opis | Przykład | Wynik |
+| Syntax | Description | Example | Result |
 | --- | --- | --- | --- |
-| `==`, `!=` | Równość / Nierówność | `==(5, 5)` | `true` |
-| `<`, `<=`, `>`, `>=` | Operatory relacyjne (łańcuchowe) | `<(1, 5, 10)` | `true` |
-| `and`, `or` | Koniunkcja i Alternatywa | `and(true, true)` | `true` |
-| `nand`, `nor` | Zanegowane AND / OR | `nand(true, true)` | `false` |
-| `not` | Negacja (tylko 1 argument) | `not(false)` | `true` |
+| `==`, `!=` | Equality / Inequality | `==(5, 5)` | `true` |
+| `<`, `<=`, `>`, `>=` | Relational operators (chaining) | `<(1, 5, 10)` | `true` |
+| `and`, `or` | Logical AND / OR | `and(true, true)` | `true` |
+| `nand`, `nor` | Negated AND / OR | `nand(true, true)` | `false` |
+| `not` | Logical NOT (1 argument only) | `not(false)` | `true` |
 
-## 4. Przepływ sterowania (Control Flow)
+## 4. Control Flow
 
-### Blok `do`
+### The `do` Block
 
-Wykonuje sekwencję instrukcji po kolei i zwraca wynik ostatniej z nich. Służy do grupowania kodu.
+Executes a sequence of instructions sequentially and returns the result of the last one. It is used to group code. Useful for executing multiple instructions in something like `if` statement
 
 ```javascript
 do(
-   print("Krok 1"),
-   print("Krok 2"),
+   print("Step 1"),
+   print("Step 2"),
    +(2, 2)
 )
 
 ```
 
-### Instrukcja warunkowa `if`
+### The `if` Statement
 
-Przyjmuje 2 lub 3 argumenty: `if(warunek, prawda, [fałsz])`.
+Takes 2 or 3 arguments: `if(condition, true_branch, [false_branch])`.
 
 ```javascript
-if(<(wiek, 18),
-   print("Jesteś niepełnoletni"),
-   print("Jesteś pełnoletni")
+if(<(age, 18),
+   print("You are a minor"),
+   print("You are an adult")
 )
 
 ```
 
-### Pętla `while`
+### The `while` Loop
 
-Wykonuje instrukcję tak długo, jak warunek jest prawdziwy.
+Executes instructions as long as the condition evaluates to true.
 
 ```javascript
 =(x:num, 0);
@@ -109,70 +108,161 @@ while(<(x, 5),
 
 ```
 
-### Pętla `for`
+### The `for` Loop
 
-Tworzy ona własny, odizolowany Scope (zmienna licznika nie wycieka na zewnątrz). Składnia to `for(inicjalizacja; warunek; krok; ciało)`.
+Creates its own isolated lexical scope (the counter variable does not leak outside). The syntax is `for(initialization; condition; step; body)`.
 
 ```javascript
 for(=(i:num, 0); <(i, 10); ++(i);
-   print("Obieg pętli: ", i)
+   print("Loop iteration: ", i)
 )
 
 ```
 
-## 5. Funkcje i domknięcia (Closures)
+## 5. Functions and Closures
 
-W `cyc` funkcje są obiektami pierwszej kategorii. Tworzymy je operatorem `func` (gdzie ostatni argument to ciało funkcji, a wcześniejsze to parametry) i przypisujemy do zmiennych. Posiadają one własny, izolowany Scope.
+In `cyc`, functions are first-class citizens. They are created using the `func` operator (where the last argument is the function body, and the preceding ones are parameters) and assigned to variables. They possess their own isolated scope.
 
 ```javascript
-# Definicja funkcji
-=(dodaj, func(a, b, +(a, b)));
+# Function definition
+=(add, func(a, b, +(a, b)));
 
-# Wywołanie funkcji
-print(dodaj(5, 10)); # Wypisze: 15
+# Function call
+print(add(5, 10)); # Outputs: 15
 
-# Rekurencja jest wspierana natywnie!
-=(silnia, func(n,
+# Recursion is natively supported!
+=(factorial, func(n,
    if(<=(n, 1),
       1,
-      *(n, silnia(-(n, 1)))
+      *(n, factorial(-(n, 1)))
    )
 ));
 
 ```
 
-## 6. Listy i programowanie obiektowe
+## 6. Lists and Data Structures
 
-`cyc` obsługuje wielowymiarowe struktury listowe oraz dostęp do metod i właściwości za pomocą notacji kropkowej (`obiekt.właściwość`).
+`cyc` supports multi-dimensional list structures and allows accessing their methods and properties using dot notation (`object.property`).
 
 ```javascript
-# Tworzenie listy
-=(mojaLista:list, list(1, 2, 3));
+# Creating a list
+=(myList:list, list(1, 2, 3));
 
-# Dodawanie elementów (metoda add)
-mojaLista.add(4, 5);
+# Adding elements (add method)
+myList.add(4, 5);
 
-# Odczytywanie długości (właściwość len)
-print("Długość listy: ", mojaLista.len);
+# Reading the length (len property)
+print("List length: ", myList.len);
 
-# Listy wielowymiarowe
-=(macierz:list, list(list(1, 2), list(3, 4)));
+# Multi-dimensional lists
+=(matrix:list, list(list(1, 2), list(3, 4)));
 
 ```
 
-## 7. Wejście / Wyjście
+## 7. Primitive Methods and Properties
 
-* **`print(arg1, arg2...)`** - Wypisuje argumenty do konsoli. Formatowanie list następuje automatycznie. *(Ciekawostka: wydrukowanie liczby 67 uruchamia systemowy Easter Egg).*.
+To maximize performance, primitives (like numbers and strings) are not boxed into heavy objects but are kept as raw values. However, `cyc` features a dynamic method registry, allowing you to use dot notation directly on them!
+
+*Properties are called without parentheses, while methods require them.*
+
+### String Properties
+
+```javascript
+=(text:str, "  cYC language  ");
+=(empty:str, "");
+
+# Basic manipulations
+print(text.lower);         # "  cyc language  "
+print(text.upper);         # "  CYC LANGUAGE  "
+print(text.trim);          # "cYC language"
+print(text.capitalize);    # "  cyc language  " (Note: respects leading spaces)
+print(text.reverse);       # "  egaugnal CYc  "
+
+# Queries
+print(text.len);           # 16
+print(empty.isEmpty);      # true
+
+```
+
+### Number Properties
+
+```javascript
+=(n:num, -5.8);
+=(num2:num, 42);
+=(bigNum:num, 1500);
+
+# Mathematics & Rounding
+print(n.abs);              # 5.8
+print(n.round);            # -6
+print(n.floor);            # -6
+print(n.ceil);             # -5
+print(n.sign);             # -1 (returns 1 for positive, 0 for zero)
+
+# Type Queries
+print(num2.isEven);        # true
+print(num2.isOdd);         # false
+print(n.isInt);            # false
+print(num2.isInt);         # true
+
+# Conversions & Formatting
+print(num2.bin);           # "101010" (Binary)
+print(num2.oct);           # "52"     (Octal)
+print(num2.hex);           # "2a"     (Hexadecimal)
+print(bigNum.sNotation);   # "1.5 * 10^3" (Scientific notation)
+
+```
+
+### Methods (Require Arguments)
+
+Depending on your specific `cyc` configuration, strings and numbers also support argument-based methods. For example:
+
+```javascript
+=(word:str, "hello");
+print(word.repeat(3));         # "hellohellohello"
+print(word.replace("h", "j")); # "jello"
+
+```
+
+## 8. Modules and Imports
+
+`cyc` supports splitting your codebase into multiple files. You can import external `.cyc` files using the `import` special form. Each imported file is evaluated in its own isolated scope, preventing global namespace pollution.
+
+```javascript
+# --- math.cyc ---
+=(magicNumber:num, 42);
+=(double, func(x, *(x, 2)));
+
+# --- main.cyc ---
+=(math, import("math.cyc"));
+
+# Accessing imported variables and functions via dot notation
+print(math.magicNumber);   # 42
+print(math.double(10));    # 20
+
+```
+
+## 9. Input / Output
+
+* **`print(arg1, arg2...)`** - Prints arguments to the console. List formatting is handled automatically. *(Fun fact: printing the number 67 triggers a system Easter Egg).*
 
 ---
 
-## Instalacja
+## Installation
 
-zklonuj repozytorium i wejdź do folderu repozytorium, następnie w terminalu wpisz `npm link`
+Clone the repository and enter the project folder, then run the following command in your terminal:
 
-## Uruchamianie Skryptów
+```bash
+npm link
 
-Zakładając, że plik nazywa się `script.cyc`, w terminalu wpisz:
-`cyc script.cyc`
+```
 
-*Koniec dokumentacji.*
+## Running Scripts
+
+Assuming your file is named `script.cyc`, run the following in your terminal:
+
+```bash
+cyc script.cyc
+
+```
+
+*End of documentation.*
