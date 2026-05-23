@@ -1,13 +1,16 @@
 {
   "name": "cyc-language",
-  "version": "1.0.0",
+  "version": "1.2.2",
   "description": "",
   "main": "main.js",
   "keywords": [],
-  "author": "Oskar P - (GOAT)",
+  "author": "Skolpionek",
   "license": "ISC",
   "type": "module",
   "bin": {
     "cyc": "./main.js"
+  },
+  "dependencies": {
+    "readline-sync": "^1.4.10"
   }
 }

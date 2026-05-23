@@ -5,7 +5,7 @@
 import fs from 'fs';
 // We import the custom errors you defined and exported in main.js
 import { TypeMismatchError, DivisionByZeroError } from './main.js';
-
+import readlineSync from 'readline-sync';
 //----------------------
 // FUNCTIONS
 //----------------------
@@ -28,6 +28,11 @@ FUNCTIONS.print = (args) => {
    let output = args.join("");
    process.stdout.write(output);
    return output;
+};
+FUNCTIONS.input = (args) => {
+   let promptText = args.length > 0 ? args[0] : "";
+   let userInput = readlineSync.question(promptText);
+   return userInput;
 };
 
 FUNCTIONS.sin = (args) => Math.sin(args[0]);
