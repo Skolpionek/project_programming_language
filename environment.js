@@ -6,12 +6,13 @@ import fs from 'fs';
 // We import the custom errors you defined and exported in main.js
 import { TypeMismatchError, DivisionByZeroError, SyntaxError, ValueError} from './main.js';
 import readlineSync from 'readline-sync';
+import { arch } from 'os';
 //----------------------
 // FUNCTIONS
 //----------------------
 
 export const FUNCTIONS = Object.create(null);
-
+//INPUT OUTPUT
 FUNCTIONS.print = (args) => {
    const formatOutput = (arg) => {
       if (arg && arg.type === "list") {
@@ -34,11 +35,26 @@ FUNCTIONS.input = (args) => {
    let userInput = readlineSync.question(promptText);
    return userInput;
 };
-
-FUNCTIONS.sin = (args) => Math.sin(args[0]);
-FUNCTIONS.cos = (args) => Math.cos(args[0]);
-FUNCTIONS.floor = (args) => Math.floor(args[0]);
 FUNCTIONS.clear = () => console.clear();
+//MATH
+function isMathValid(args, name){
+   if (args.length !== 1) {
+      throw new SyntaxError(`Function '${name}' requires exactly 1 argument`);
+   }
+   let arg = args[0]
+   let typeName = arg && arg.type ? arg.type : typeof arg;
+   if (typeName !== "number") {
+      throw new TypeMismatchError(`Function '${name}' requires exactly number as argument`);
+   }
+   return arg;
+}
+FUNCTIONS.sin = (args) => Math.sin(isMathValid(args, 'sin'));
+FUNCTIONS.cos = (args) => Math.cos(isMathValid(args, 'cos'));
+FUNCTIONS.abs = (args) => Math.abs(isMathValid(args, 'abs'));
+FUNCTIONS.sqrt = (args) => Math.sqrt(isMathValid(args, 'sqrt'));
+FUNCTIONS.floor = (args) => Math.floor(isMathValid(args, 'floor'));
+FUNCTIONS.ceil = (args) => Math.ceil(isMathValid(args, 'ceil'));
+
 
 FUNCTIONS.num = (args) => {
    if (args.length !== 1) {

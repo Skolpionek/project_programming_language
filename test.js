@@ -338,6 +338,25 @@ const regression_tests = [
    { name: "Implicit false from empty list in IF", code: "=(l:list, list()); if(l, 10, 20)", expected: 20 },
    { name: "Implicit true from populated list in IF", code: "=(l:list, list(1)); if(l, 10, 20)", expected: 10 },
    { name: "WHILE loop stops on implicit zero falsiness", code: "=(x:num, 3); while(x, =(x, -(x, 1))); x", expected: 0 },
+
+   // ==========================================
+   // 10. ADVANCED MATHEMATICS
+   // ==========================================
+   // --- Positive Math Tests ---
+   { name: "Math SIN of 0", code: "sin(0)", expected: 0 },
+   { name: "Math COS of 0", code: "cos(0)", expected: 1 },
+   { name: "Math ABS of negative number", code: "abs(-42)", expected: 42 },
+   { name: "Math ABS of positive number", code: "abs(42)", expected: 42 },
+   { name: "Math SQRT of perfect square", code: "sqrt(16)", expected: 4 },
+   { name: "Math FLOOR of decimal number", code: "floor(3.9)", expected: 3 },
+   { name: "Math CEIL of decimal number", code: "ceil(3.1)", expected: 4 },
+
+   // --- Type and Argument Validation Tests (Negative) ---
+   { name: "Math SIN missing argument (Error)", code: "sin()", expectedError: "Function 'sin' requires exactly 1 argument" },
+   { name: "Math COS too many arguments (Error)", code: "cos(0, 1)", expectedError: "Function 'cos' requires exactly 1 argument" },
+   { name: "Math ABS string type mismatch (Error)", code: "abs(\"-5\")", expectedError: "Function 'abs' requires exactly number as argument" },
+   { name: "Math SQRT boolean type mismatch (Error)", code: "sqrt(true)", expectedError: "Function 'sqrt' requires exactly number as argument" },
+   { name: "Math FLOOR list type mismatch (Error)", code: "floor(list(3.5))", expectedError: "Function 'floor' requires exactly number as argument" }
 ];
    
 function testing(tests) {
