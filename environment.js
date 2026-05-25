@@ -200,6 +200,15 @@ FUNCTIONS["/"] = (args) => {
       return acc / curr;
    });
 };
+FUNCTIONS["%"] = (args) => {
+   return args.reduce((acc, curr) => {
+      if(typeof acc !== "number" || typeof curr !== "number") {
+         throw new TypeMismatchError("Type mismatch: division requires numbers");
+      }
+      if (curr === 0) throw new DivisionByZeroError("Division by zero is not allowed");
+      return acc % curr;
+   });
+};
 
 //----------------------
 // COMPARISON OPERATORS

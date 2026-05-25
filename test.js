@@ -44,6 +44,14 @@ const regression_tests = [
    { name: "Division by zero directly (Error)", code: "/(10, 0)", expectedError: "Division by zero is not allowed" },
    { name: "Division by zero in chain (Error)", code: "/(10, 2, 0)", expectedError: "Division by zero is not allowed" },
    { name: "Division type mismatch (Error)", code: "/(10, \"a\")", expectedError: "Type mismatch: division requires numbers" },
+   
+   // --- MODULO (%) ---
+   { name: "Modulo three arguments", code: "%(15 ,10 , 2)", expected: 1 },
+   { name: "Modulo two arguments", code: "%(4, 2)", expected: 0 },
+   { name: "Modulo single argument", code: "%(5)", expected: 5 },
+   { name: "Modulo by zero directly (Error)", code: "%(10, 0)", expectedError: "Division by zero is not allowed" },
+   { name: "Modulo by zero in chain (Error)", code: "%(10, 2, 0)", expectedError: "Division by zero is not allowed" },
+   { name: "Modulo type mismatch (Error)", code: "%(10, \"a\")", expectedError: "Type mismatch: division requires numbers" },
 
    // --- EXPONENTIATION (^) ---
    { name: "Exponentiation basic", code: "^(2, 3)", expected: 8 },
